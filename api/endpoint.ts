@@ -4,7 +4,7 @@ import Parser from "web-tree-sitter"
 import treeSitterWasm from "web-tree-sitter/tree-sitter.wasm?module"
 
 // @ts-expect-error
-import jsWasm from "./tree-sitter-javascript.wasm?module"
+import jsWasm from "../tree-sitter-javascript.wasm?module"
 
 export const config = { runtime: "edge" }
 
