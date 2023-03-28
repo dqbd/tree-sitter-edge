@@ -1,0 +1,18 @@
+{
+  "name": "tree-sitter-edge",
+  "scripts": {
+    "postinstall": "tsx scripts/edge-prepare.ts"
+  },
+  "dependencies": {
+    "web-tree-sitter": "^0.20.7"
+  },
+  "devDependencies": {
+    "@types/node": "^18.15.10",
+    "ts-morph": "^17.0.1",
+    "tsx": "^3.12.6",
+    "typescript": "^5.0.2"
+  },
+  "prettier": {
+    "semi": false
+  }
+}
