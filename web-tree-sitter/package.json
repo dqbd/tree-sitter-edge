@@ -1,0 +1,29 @@
+{
+  "name": "@diagram/web-tree-sitter",
+  "version": "0.0.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "$schema": "https://json.schemastore.org/package",
+  "scripts": {
+    "test": "jest"
+  },
+  "main": "tree-sitter.js",
+  "types": "tree-sitter.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "node": "./tree-sitter.js",
+      "edge-light": "./tree-sitter.edge.js",
+      "default": "./tree-sitter.edge.js"
+    },
+    "./javascript": {
+      "node": "./javascript.js",
+      "edge-light": "./javascript.edge.js",
+      "default": "./javascript.edge.js"
+    }
+  },
+  "dependencies": {
+    "tree-sitter": "^0.20.1",
+    "tree-sitter-javascript": "^0.19.0"
+  }
+}
