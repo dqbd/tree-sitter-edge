@@ -1,11 +1,13 @@
 {
   "name": "tree-sitter-edge",
   "dependencies": {
-    "@diagram/web-tree-sitter": "link:./web-tree-sitter"
+    "@diagram/web-tree-sitter": "link:./web-tree-sitter",
+    "magicast": "^0.2.3"
   },
   "devDependencies": {
     "@types/node": "^18.15.10",
     "@vercel/node": "^2.10.3",
+    "terser": "^5.16.9",
     "ts-morph": "^17.0.1",
     "tsx": "^3.12.6",
     "typescript": "^5.0.2"

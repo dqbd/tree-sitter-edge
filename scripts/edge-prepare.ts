@@ -1,28 +1,78 @@
-import { Project, SourceFile, ts } from "ts-morph"
+import { IfStatement, Project, SourceFile, ts } from "ts-morph"
+import { minify } from "terser"
 import path from "node:path"
+import fs from "node:fs/promises"
 
-function patch(sourceFile: SourceFile) {
+function getIdentifiers(sourceFile: SourceFile, ...identifiers: string[]) {
+  return sourceFile
+    .getDescendantsOfKind(ts.SyntaxKind.Identifier)
+    .filter((i) => identifiers.includes(i.getText()))
+}
+
+function patchSource(sourceFile: SourceFile) {
   if (
-    sourceFile
+    !sourceFile
       .getDescendantsOfKind(ts.SyntaxKind.Identifier)
-      .filter((i) => i.getText() === "_require").length
+      .filter((i) => i.getText() === "require").length
   ) {
     console.log("Already patched")
     return
   }
 
-  // patch require to _require to resolve bundling issues with esbuild
+  // remove all conditions node specific conditions
   {
-    sourceFile
-      .getDescendantsOfKind(ts.SyntaxKind.Identifier)
-      .filter((i) => i.getText() === "require")
-      .map((i) => i.getFirstAncestorByKindOrThrow(ts.SyntaxKind.CallExpression))
-      .forEach((m) => m.setExpression("_require"))
+    getIdentifiers(sourceFile, "ENVIRONMENT_IS_NODE", "process")
+      .map((i) => i.getFirstAncestorByKind(ts.SyntaxKind.IfStatement))
+      .filter((i): i is IfStatement => i != null)
+      .forEach(
+        (i) =>
+          !i.wasForgotten() &&
+          i.replaceWithText(i.getElseStatement()?.getFullText() ?? "")
+      )
+  }
 
-    sourceFile.insertText(
-      0,
-      `var _require = typeof require != "undefined" ? require : null;`
+  // remove all node specific variables
+  {
+    getIdentifiers(sourceFile, "ENVIRONMENT_IS_NODE").forEach((node) =>
+      node
+        .getFirstAncestorByKindOrThrow(ts.SyntaxKind.VariableDeclaration)
+        .remove()
     )
+  }
+
+  // uncomment eval
+  {
+    getIdentifiers(sourceFile, "eval").forEach((node) => {
+      node
+        .getFirstAncestorByKindOrThrow(ts.SyntaxKind.ExpressionStatement)
+        .replaceWithText((writer) => {
+          writer.writeLine(`throw new Error("eval() is not supported")`)
+        })
+    })
+  }
+
+  // add import for ?module
+  {
+    const instantiateWasm = sourceFile
+      .getDescendantsOfKind(ts.SyntaxKind.StringLiteral)
+      .filter((i) => i.getText() === `"instantiateWasm"`)
+      .map((i) => i.getFirstAncestorByKindOrThrow(ts.SyntaxKind.IfStatement))
+      .at(0)!
+
+    // remove instantiateAsync() method call
+    instantiateWasm
+      .getNextSiblingIfKindOrThrow(ts.SyntaxKind.ExpressionStatement)
+      .remove()
+
+    instantiateWasm.replaceWithText((writer) => {
+      writer.writeLine(
+        `WebAssembly.instantiate(wasm, info).then((instance) => receiveInstance(instance, wasm))`
+      )
+    })
+
+    sourceFile.insertText(0, (writer) => {
+      writer.writeLine(`import wasm from "./tree-sitter.wasm?module"`)
+    })
   }
 
   // patch Parser.Language.load to allow WebAssembly.Module as an argument
@@ -74,12 +124,43 @@ function patch(sourceFile: SourceFile) {
   }
 }
 
-const targetFilePath = path.resolve(
-  __dirname,
-  "../node_modules/web-tree-sitter/tree-sitter.js"
-)
-const sourceFile = new Project().addSourceFileAtPath(targetFilePath)
+function patchDefinition(sourceFile: SourceFile) {
+  // make all delete() optional due to isomorphic nature of the library
+  {
+    getIdentifiers(sourceFile, "delete")
+      .map((i) => i.getFirstAncestorByKind(ts.SyntaxKind.MethodDeclaration))
+      .forEach((i) => i?.set({ hasQuestionToken: true }))
 
-patch(sourceFile)
+    getIdentifiers(sourceFile, "delete")
+      .map((i) => i.getFirstAncestorByKind(ts.SyntaxKind.MethodSignature))
+      .forEach((i) => i?.set({ hasQuestionToken: true }))
+  }
+}
 
-sourceFile.saveSync()
+async function main() {
+  const project = new Project()
+  const sourceFile = project.addSourceFileAtPath(
+    path.resolve(__dirname, "../web-tree-sitter/tree-sitter.js")
+  )
+
+  const declarationFile = project.addSourceFileAtPath(
+    path.resolve(__dirname, "../web-tree-sitter/tree-sitter-web.d.ts")
+  )
+
+  patchSource(sourceFile)
+  patchDefinition(declarationFile)
+
+  await fs.writeFile(
+    path.resolve(__dirname, "../web-tree-sitter/tree-sitter.edge.js"),
+    (await minify(sourceFile.getFullText())).code ?? "",
+    { encoding: "utf-8" }
+  )
+
+  await fs.writeFile(
+    path.resolve(__dirname, "../web-tree-sitter/tree-sitter.edge.d.ts"),
+    declarationFile.getFullText(),
+    { encoding: "utf-8" }
+  )
+}
+
+main()

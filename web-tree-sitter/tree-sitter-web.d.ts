@@ -1,11 +1,11 @@
-declare module '@diagram/web-tree-sitter' {
+declare module 'web-tree-sitter' {
   class Parser {
     /**
      * 
      * @param moduleOptions Optional emscripten module-object, see https://emscripten.org/docs/api_reference/module.html
      */
     static init(moduleOptions?: object): Promise<void>;
-    delete: (() => void) | undefined;
+    delete(): void;
     parse(input: string | Parser.Input, previousTree?: Parser.Tree, options?: Parser.Options): Parser.Tree;
     reset(): void;
     getLanguage(): Parser.Language;
@@ -114,7 +114,7 @@ declare module '@diagram/web-tree-sitter' {
       endIndex: number;
 
       reset(node: SyntaxNode): void;
-      delete: (() => void) | undefined;
+      delete(): void;
       currentNode(): SyntaxNode;
       currentFieldId(): number;
       currentFieldName(): string;
@@ -128,7 +128,7 @@ declare module '@diagram/web-tree-sitter' {
       readonly rootNode: SyntaxNode;
 
       copy(): Tree;
-      delete: (() => void) | undefined;
+      delete(): void;
       edit(delta: Edit): Tree;
       walk(): TreeCursor;
       getChangedRanges(other: Tree): Range[];
@@ -170,7 +170,7 @@ declare module '@diagram/web-tree-sitter' {
     class Query {
       captureNames: string[];
 
-      delete: (() => void) | undefined;
+      delete(): void;
       matches(node: SyntaxNode, startPosition?: Point, endPosition?: Point): QueryMatch[];
       captures(node: SyntaxNode, startPosition?: Point, endPosition?: Point): QueryCapture[];
       predicatesForPattern(patternIndex: number): PredicateResult[];
